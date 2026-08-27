@@ -66,7 +66,7 @@ export function apply(ctx: ClientContext): void {
     ctx.slots.register(
       {
         name: "settings.plugin.item",
-        id: "opencode-go",
+        key: "opencode-go",
         order: 30,
         inject: (): ConnectCardInjected => ({ t, remote }),
       },
