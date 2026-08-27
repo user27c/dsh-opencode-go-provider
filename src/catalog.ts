@@ -24,13 +24,32 @@ import type {
   ReasoningOption,
 } from "./types.ts";
 
-/** Code-unit lexicographic comparator; deterministic across environments. */
+const numericCollator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "variant",
+});
+
+function modelPrefix(id: string): string {
+  const m = /^[a-z]+/.exec(id);
+  return m ? m[0] : id;
+}
+
+/** Prefix-grouped numeric comparator; keeps same-family models contiguous. */
 export function compareIds(a: string, b: string): number {
+  const pa = modelPrefix(a);
+  const pb = modelPrefix(b);
+  if (pa !== pb) {
+    return pa < pb ? -1 : pa > pb ? 1 : 0;
+  }
+  const n = numericCollator.compare(a, b);
+  if (n !== 0) return n;
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
 /** Sort a copy of the input by model id; never mutates the caller's array. */
-export function sortedById<T extends { readonly id: string }>(entries: readonly T[]): readonly T[] {
+export function sortedById<T extends { readonly id: string }>(
+  entries: readonly T[],
+): readonly T[] {
   return [...entries].sort((a, b) => compareIds(a.id, b.id));
 }
 
@@ -40,7 +59,12 @@ function resolveBaseUrl(
   provider: ModelsDevProvider,
   patches: Patches,
   protocol: "openai-responses" | "openai-completions" | "anthropic-messages",
-): { readonly ok: true; readonly baseUrl: string } | { readonly ok: false; readonly reasonCode: "ANTHROPIC_BASE_URL_MISSING" | "MISSING_BASE_URL" } {
+):
+  | { readonly ok: true; readonly baseUrl: string }
+  | {
+      readonly ok: false;
+      readonly reasonCode: "ANTHROPIC_BASE_URL_MISSING" | "MISSING_BASE_URL";
+    } {
   const patch = patches.baseUrlByProtocol[protocol];
   if (patch !== undefined) return { ok: true, baseUrl: patch.baseUrl };
   if (metadata.api !== undefined) return { ok: true, baseUrl: metadata.api };
@@ -74,6 +98,7 @@ export function deriveCatalogModel(
     model: {
       id: metadata.id,
       name: metadata.name,
+      ...(metadata.family === undefined ? {} : { family: metadata.family }),
       protocol,
       provider: PROVIDER_ID,
       baseUrl: base.baseUrl,
@@ -81,8 +106,12 @@ export function deriveCatalogModel(
       contextWindow: metadata.contextWindow,
       maxTokens: metadata.maxTokens,
       reasoning: metadata.reasoning,
-      ...(metadata.reasoningOptions === undefined ? {} : { reasoningOptions: metadata.reasoningOptions }),
-      ...(metadata.interleaved === undefined ? {} : { interleaved: metadata.interleaved }),
+      ...(metadata.reasoningOptions === undefined
+        ? {}
+        : { reasoningOptions: metadata.reasoningOptions }),
+      ...(metadata.interleaved === undefined
+        ? {}
+        : { interleaved: metadata.interleaved }),
       ...(metadata.cost === undefined ? {} : { cost: metadata.cost }),
     },
   };
@@ -94,8 +123,16 @@ function renderJson(value: unknown): string {
 }
 
 /** Ordered JSON value for one price triple (input, output, caches). */
-function renderPrice(price: { readonly input: number; readonly output: number; readonly cacheRead?: number; readonly cacheWrite?: number }): Record<string, unknown> {
-  const out: Record<string, unknown> = { input: price.input, output: price.output };
+function renderPrice(price: {
+  readonly input: number;
+  readonly output: number;
+  readonly cacheRead?: number;
+  readonly cacheWrite?: number;
+}): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    input: price.input,
+    output: price.output,
+  };
   if (price.cacheRead !== undefined) out.cacheRead = price.cacheRead;
   if (price.cacheWrite !== undefined) out.cacheWrite = price.cacheWrite;
   return out;
@@ -122,7 +159,9 @@ function renderCost(cost: ModelCost): Record<string, unknown> {
 }
 
 /** Ordered JSON value for one reasoning option. */
-function renderReasoningOption(option: ReasoningOption): Record<string, unknown> {
+function renderReasoningOption(
+  option: ReasoningOption,
+): Record<string, unknown> {
   switch (option.kind) {
     case "effort":
       return { kind: "effort", values: [...option.values] };
@@ -142,10 +181,13 @@ function renderCatalogModel(model: CatalogModel): Record<string, unknown> {
   const out: Record<string, unknown> = {
     id: model.id,
     name: model.name,
-    protocol: model.protocol,
-    provider: model.provider,
-    baseUrl: model.baseUrl,
   };
+  if (model.family !== undefined) {
+    (out as Record<string, unknown>).family = model.family;
+  }
+  out.protocol = model.protocol;
+  out.provider = model.provider;
+  (out as Record<string, unknown>).baseUrl = model.baseUrl;
   if (model.input !== undefined) {
     out.input = [...model.input];
   }
@@ -187,7 +229,9 @@ export function renderModelsManifest(manifest: ModelsManifest): string {
 }
 
 /** Render the sanitized quarantine artifact. */
-export function renderQuarantineFile(records: readonly QuarantineRecord[]): string {
+export function renderQuarantineFile(
+  records: readonly QuarantineRecord[],
+): string {
   const ordered = sortedById(records).map((record) => ({
     id: record.id,
     detectedAt: record.detectedAt,
@@ -198,7 +242,9 @@ export function renderQuarantineFile(records: readonly QuarantineRecord[]): stri
 }
 
 /** Render the deprecated state artifact (internal; carries frozen models). */
-export function renderDeprecatedFile(entries: readonly DeprecatedEntry[]): string {
+export function renderDeprecatedFile(
+  entries: readonly DeprecatedEntry[],
+): string {
   const ordered = sortedById(entries).map((entry) => ({
     id: entry.id,
     deprecatedAt: entry.deprecatedAt,
@@ -214,7 +260,10 @@ export function renderPatchesFile(patches: Patches): string {
   for (const protocol of PROTOCOLS) {
     const patch = patches.baseUrlByProtocol[protocol];
     if (patch === undefined) continue;
-    baseUrlByProtocol[protocol] = { baseUrl: patch.baseUrl, evidence: patch.evidence };
+    baseUrlByProtocol[protocol] = {
+      baseUrl: patch.baseUrl,
+      evidence: patch.evidence,
+    };
   }
   return renderJson({ baseUrlByProtocol });
 }

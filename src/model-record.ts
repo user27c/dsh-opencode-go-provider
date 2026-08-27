@@ -29,7 +29,10 @@ import type {
 } from "./types.ts";
 
 /** String field reader: undefined = absent, null = present but malformed. */
-function parseStringField(record: Record<string, unknown>, key: string): string | null | undefined {
+function parseStringField(
+  record: Record<string, unknown>,
+  key: string,
+): string | null | undefined {
   const value = record[key];
   if (value === undefined) return undefined;
   return isString(value) ? value : null;
@@ -37,11 +40,24 @@ function parseStringField(record: Record<string, unknown>, key: string): string 
 
 function parsePrice(value: unknown): ModelCostBase | undefined {
   if (!isRecord(value)) return undefined;
-  if (!isNonnegativeFiniteNumber(value.input) || !isNonnegativeFiniteNumber(value.output)) {
+  if (
+    !isNonnegativeFiniteNumber(value.input) ||
+    !isNonnegativeFiniteNumber(value.output)
+  ) {
     return undefined;
   }
-  const cacheRead = value.cache_read === undefined ? undefined : isNonnegativeFiniteNumber(value.cache_read) ? value.cache_read : null;
-  const cacheWrite = value.cache_write === undefined ? undefined : isNonnegativeFiniteNumber(value.cache_write) ? value.cache_write : null;
+  const cacheRead =
+    value.cache_read === undefined
+      ? undefined
+      : isNonnegativeFiniteNumber(value.cache_read)
+        ? value.cache_read
+        : null;
+  const cacheWrite =
+    value.cache_write === undefined
+      ? undefined
+      : isNonnegativeFiniteNumber(value.cache_write)
+        ? value.cache_write
+        : null;
   if (cacheRead === null || cacheWrite === null) {
     return undefined;
   }
@@ -57,9 +73,20 @@ function parsePrice(value: unknown): ModelCostBase | undefined {
 function parseTier(value: unknown): CostTier | undefined {
   if (!isRecord(value)) return undefined;
   const tier = isRecord(value.tier) ? value.tier : undefined;
-  const threshold = tier === undefined ? undefined : isPositiveInteger(tier.size) ? tier.size : undefined;
-  const tierType = tier === undefined ? undefined : parseStringField(tier, "type");
-  if (threshold === undefined || tierType === null || tierType === undefined || tierType !== "context") {
+  const threshold =
+    tier === undefined
+      ? undefined
+      : isPositiveInteger(tier.size)
+        ? tier.size
+        : undefined;
+  const tierType =
+    tier === undefined ? undefined : parseStringField(tier, "type");
+  if (
+    threshold === undefined ||
+    tierType === null ||
+    tierType === undefined ||
+    tierType !== "context"
+  ) {
     return undefined;
   }
   const base = parsePrice(value);
@@ -97,18 +124,23 @@ function parseCost(value: unknown): ModelCost | undefined {
 }
 
 /** Effort values must be safe, nonempty and unique (nulls are schema-allowed). */
-function parseEffortValues(value: unknown): readonly (string | null)[] | undefined {
+function parseEffortValues(
+  value: unknown,
+): readonly (string | null)[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const seen = new Set<string>();
   for (const entry of value) {
     if (entry === null) continue;
-    if (!isString(entry) || !isSafeModelId(entry) || seen.has(entry)) return undefined;
+    if (!isString(entry) || !isSafeModelId(entry) || seen.has(entry))
+      return undefined;
     seen.add(entry);
   }
   return value;
 }
 
-function parseReasoningOptions(value: unknown): readonly ReasoningOption[] | undefined {
+function parseReasoningOptions(
+  value: unknown,
+): readonly ReasoningOption[] | undefined {
   if (value === undefined) return undefined;
   if (!Array.isArray(value)) return undefined;
   const options: ReasoningOption[] = [];
@@ -125,8 +157,18 @@ function parseReasoningOptions(value: unknown): readonly ReasoningOption[] | und
       continue;
     }
     if (raw.type === "budget_tokens") {
-      const min = raw.min === undefined ? undefined : isNonnegativeFiniteNumber(raw.min) && Number.isInteger(raw.min) ? raw.min : null;
-      const max = raw.max === undefined ? undefined : isNonnegativeFiniteNumber(raw.max) && Number.isInteger(raw.max) ? raw.max : null;
+      const min =
+        raw.min === undefined
+          ? undefined
+          : isNonnegativeFiniteNumber(raw.min) && Number.isInteger(raw.min)
+            ? raw.min
+            : null;
+      const max =
+        raw.max === undefined
+          ? undefined
+          : isNonnegativeFiniteNumber(raw.max) && Number.isInteger(raw.max)
+            ? raw.max
+            : null;
       if (min === null || max === null) return undefined;
       if (min !== undefined && max !== undefined && min > max) return undefined;
       options.push({
@@ -145,12 +187,15 @@ function parseInterleaved(value: unknown): InterleavedField | undefined {
   if (value === undefined || value === null) return undefined;
   if (!isRecord(value)) return undefined;
   const field = parseStringField(value, "field");
-  if (field === null || field === undefined || !isSafeText(field)) return undefined;
+  if (field === null || field === undefined || !isSafeText(field))
+    return undefined;
   return { field };
 }
 
 /** Input modalities must be documented literals, each listed once. */
-function parseModalities(value: unknown): readonly ModalityLiteral[] | undefined {
+function parseModalities(
+  value: unknown,
+): readonly ModalityLiteral[] | undefined {
   if (value === undefined) return undefined;
   if (!isRecord(value)) return undefined;
   if (!Array.isArray(value.input)) return undefined;
@@ -179,16 +224,39 @@ export function parseModelRecord(value: unknown): ModelRecordParseResult {
   const name = parseStringField(value, "name");
   const reasoning = isBoolean(value.reasoning) ? value.reasoning : undefined;
   const limit = isRecord(value.limit) ? value.limit : undefined;
-  const contextWindow = limit === undefined ? undefined : isPositiveInteger(limit.context) ? limit.context : undefined;
-  const maxTokens = limit === undefined ? undefined : isPositiveInteger(limit.output) ? limit.output : undefined;
-  if (id === undefined || name === undefined || id === null || name === null || reasoning === undefined ||
-      (id !== null && !isSafeModelId(id)) || (name !== null && !isSafeText(name))) {
+  const contextWindow =
+    limit === undefined
+      ? undefined
+      : isPositiveInteger(limit.context)
+        ? limit.context
+        : undefined;
+  const maxTokens =
+    limit === undefined
+      ? undefined
+      : isPositiveInteger(limit.output)
+        ? limit.output
+        : undefined;
+  if (
+    id === undefined ||
+    name === undefined ||
+    id === null ||
+    name === null ||
+    reasoning === undefined ||
+    (id !== null && !isSafeModelId(id)) ||
+    (name !== null && !isSafeText(name))
+  ) {
     return { kind: "invalid", reasonCode: "INVALID_MODEL_RECORD" };
   }
-  if (contextWindow === undefined && (limit === undefined || limit.context === undefined)) {
+  if (
+    contextWindow === undefined &&
+    (limit === undefined || limit.context === undefined)
+  ) {
     return { kind: "invalid", reasonCode: "MISSING_CONTEXT" };
   }
-  if (maxTokens === undefined && (limit === undefined || limit.output === undefined)) {
+  if (
+    maxTokens === undefined &&
+    (limit === undefined || limit.output === undefined)
+  ) {
     return { kind: "invalid", reasonCode: "MISSING_OUTPUT_LIMIT" };
   }
   if (contextWindow === undefined || maxTokens === undefined) {
@@ -207,12 +275,29 @@ export function parseModelRecord(value: unknown): ModelRecordParseResult {
     return { kind: "invalid", reasonCode: "INVALID_MODEL_RECORD" };
   }
   const interleaved = parseInterleaved(value.interleaved);
-  if (value.interleaved !== undefined && value.interleaved !== null && interleaved === undefined) {
+  if (
+    value.interleaved !== undefined &&
+    value.interleaved !== null &&
+    interleaved === undefined
+  ) {
+    return { kind: "invalid", reasonCode: "INVALID_MODEL_RECORD" };
+  }
+  const rawFamily = (value as Record<string, unknown>).family;
+  let family: string | undefined;
+  if (rawFamily === undefined || rawFamily === null) {
+    family = undefined;
+  } else if (isString(rawFamily) && isSafeText(rawFamily)) {
+    family = rawFamily;
+  } else if (isString(rawFamily)) {
+    return { kind: "invalid", reasonCode: "INVALID_MODEL_RECORD" };
+  } else {
     return { kind: "invalid", reasonCode: "INVALID_MODEL_RECORD" };
   }
   const provider = isRecord(value.provider) ? value.provider : undefined;
-  const npm = provider === undefined ? undefined : parseStringField(provider, "npm");
-  const api = provider === undefined ? undefined : parseStringField(provider, "api");
+  const npm =
+    provider === undefined ? undefined : parseStringField(provider, "npm");
+  const api =
+    provider === undefined ? undefined : parseStringField(provider, "api");
   if (npm === null || api === null) {
     return { kind: "invalid", reasonCode: "INVALID_MODEL_RECORD" };
   }
@@ -224,6 +309,7 @@ export function parseModelRecord(value: unknown): ModelRecordParseResult {
     metadata: {
       id,
       name,
+      ...(family === undefined ? {} : { family }),
       reasoning,
       contextWindow,
       maxTokens,

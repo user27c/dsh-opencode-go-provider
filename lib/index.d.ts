@@ -96,6 +96,7 @@ type Availability = {
 interface CatalogModel {
   readonly id: string;
   readonly name: string;
+  readonly family?: string;
   readonly protocol: Protocol;
   readonly provider: typeof PROVIDER_ID;
   readonly baseUrl: string;
@@ -138,6 +139,7 @@ interface Patches {
 interface ModelsDevModelMetadata {
   readonly id: string;
   readonly name: string;
+  readonly family?: string;
   readonly reasoning: boolean;
   readonly contextWindow: number;
   readonly maxTokens: number;
@@ -211,7 +213,7 @@ declare function sdkToProtocol(npm: string | undefined): Protocol | undefined;
 declare function parseLiveIds(value: unknown): readonly string[];
 //#endregion
 //#region src/catalog.d.ts
-/** Code-unit lexicographic comparator; deterministic across environments. */
+/** Prefix-grouped numeric comparator; keeps same-family models contiguous. */
 declare function compareIds(a: string, b: string): number;
 interface ModelsManifest {
   readonly generatedAt: string;

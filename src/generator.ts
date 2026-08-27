@@ -25,7 +25,13 @@ import {
   parsePatchesFile,
   parseQuarantineFile,
 } from "./state-file.ts";
-import type { Availability, CatalogModel, LiveSource, QuarantineRecord, ReconcileStats } from "./types.ts";
+import type {
+  Availability,
+  CatalogModel,
+  LiveSource,
+  QuarantineRecord,
+  ReconcileStats,
+} from "./types.ts";
 
 export interface LiveInput {
   readonly liveJson: string;
@@ -44,17 +50,41 @@ export interface GenerateInput {
 }
 
 export interface GenerateOutput {
-  readonly files: Readonly<Record<"models.json" | "quarantine.json" | "deprecated.json" | "patches.json", string>>;
+  readonly files: Readonly<
+    Record<
+      "models.json" | "quarantine.json" | "deprecated.json" | "patches.json",
+      string
+    >
+  >;
   readonly stats: ReconcileStats;
   readonly transitioned: boolean;
   readonly generatedAt: string;
 }
 
+const numericCollator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "variant",
+});
+
+function modelPrefix(id: string): string {
+  const m = /^[a-z]+/.exec(id);
+  return m ? m[0] : id;
+}
+
 function compareIds(a: string, b: string): number {
+  const pa = modelPrefix(a);
+  const pb = modelPrefix(b);
+  if (pa !== pb) {
+    return pa < pb ? -1 : pa > pb ? 1 : 0;
+  }
+  const n = numericCollator.compare(a, b);
+  if (n !== 0) return n;
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-function sortByQuarantineId(records: readonly QuarantineRecord[]): readonly QuarantineRecord[] {
+function sortByQuarantineId(
+  records: readonly QuarantineRecord[],
+): readonly QuarantineRecord[] {
   return [...records].sort((a, b) => compareIds(a.id, b.id));
 }
 
@@ -88,17 +118,30 @@ function bootstrapQuarantine(
 }
 
 export function generateCatalogFiles(input: GenerateInput): GenerateOutput {
-  const provider = parseModelsDevProvider(parseJsonFile(input.modelsDevJson, "models.dev"));
-  const patches = parsePatchesFile(parseJsonFile(input.patchesJson, "patches.json"));
-  const previousManifest = input.previousModelsJson === undefined
-    ? undefined
-    : parseModelsManifest(parseJsonFile(input.previousModelsJson, "models.json"));
-  const previousQuarantine = input.previousQuarantineJson === undefined
-    ? []
-    : parseQuarantineFile(parseJsonFile(input.previousQuarantineJson, "quarantine.json"));
-  const previousDeprecated = input.previousDeprecatedJson === undefined
-    ? []
-    : parseDeprecatedFile(parseJsonFile(input.previousDeprecatedJson, "deprecated.json"));
+  const provider = parseModelsDevProvider(
+    parseJsonFile(input.modelsDevJson, "models.dev"),
+  );
+  const patches = parsePatchesFile(
+    parseJsonFile(input.patchesJson, "patches.json"),
+  );
+  const previousManifest =
+    input.previousModelsJson === undefined
+      ? undefined
+      : parseModelsManifest(
+          parseJsonFile(input.previousModelsJson, "models.json"),
+        );
+  const previousQuarantine =
+    input.previousQuarantineJson === undefined
+      ? []
+      : parseQuarantineFile(
+          parseJsonFile(input.previousQuarantineJson, "quarantine.json"),
+        );
+  const previousDeprecated =
+    input.previousDeprecatedJson === undefined
+      ? []
+      : parseDeprecatedFile(
+          parseJsonFile(input.previousDeprecatedJson, "deprecated.json"),
+        );
   const nowIso = input.now.toISOString();
 
   let catalog: ReturnType<typeof reconcile>["catalog"];
@@ -113,7 +156,12 @@ export function generateCatalogFiles(input: GenerateInput): GenerateOutput {
       if (derived.kind === "derived") models.push(derived.model);
     }
     catalog = [...models].sort((a, b) => compareIds(a.id, b.id));
-    quarantine = bootstrapQuarantine(provider, patches, new Map(previousQuarantine.map((r) => [r.id, r])), nowIso);
+    quarantine = bootstrapQuarantine(
+      provider,
+      patches,
+      new Map(previousQuarantine.map((r) => [r.id, r])),
+      nowIso,
+    );
     deprecated = [];
     availability = { kind: "unverified" };
     stats = {
@@ -125,7 +173,9 @@ export function generateCatalogFiles(input: GenerateInput): GenerateOutput {
       resurrected: 0,
     };
   } else {
-    const liveIds = parseLiveIds(parseJsonFile(input.live.liveJson, "live /models"));
+    const liveIds = parseLiveIds(
+      parseJsonFile(input.live.liveJson, "live /models"),
+    );
     const result = reconcile({
       provider,
       liveIds,
@@ -134,7 +184,9 @@ export function generateCatalogFiles(input: GenerateInput): GenerateOutput {
         models: previousManifest?.models ?? [],
         quarantine: previousQuarantine,
         deprecated: previousDeprecated,
-        ...(previousManifest === undefined ? {} : { generatedAt: previousManifest.generatedAt }),
+        ...(previousManifest === undefined
+          ? {}
+          : { generatedAt: previousManifest.generatedAt }),
       },
       now: input.now,
     });
@@ -149,21 +201,40 @@ export function generateCatalogFiles(input: GenerateInput): GenerateOutput {
     previousManifest === undefined
       ? undefined
       : [
-          renderModelsManifest({ generatedAt: "", provenance: previousManifest.provenance, availability: previousManifest.availability, models: previousManifest.models }),
+          renderModelsManifest({
+            generatedAt: "",
+            provenance: previousManifest.provenance,
+            availability: previousManifest.availability,
+            models: previousManifest.models,
+          }),
           renderQuarantineFile(previousQuarantine),
           renderDeprecatedFile(previousDeprecated),
         ].join("\u0000");
   const nextSignature = [
-    renderModelsManifest({ generatedAt: "", provenance: input.provenance, availability, models: catalog }),
+    renderModelsManifest({
+      generatedAt: "",
+      provenance: input.provenance,
+      availability,
+      models: catalog,
+    }),
     renderQuarantineFile(quarantine),
     renderDeprecatedFile(deprecated),
   ].join("\u0000");
-  const transitioned = previousSignature === undefined || previousSignature !== nextSignature;
-  const generatedAt = transitioned || previousManifest === undefined ? nowIso : previousManifest.generatedAt;
+  const transitioned =
+    previousSignature === undefined || previousSignature !== nextSignature;
+  const generatedAt =
+    transitioned || previousManifest === undefined
+      ? nowIso
+      : previousManifest.generatedAt;
 
   return {
     files: {
-      "models.json": renderModelsManifest({ generatedAt, provenance: input.provenance, availability, models: catalog }),
+      "models.json": renderModelsManifest({
+        generatedAt,
+        provenance: input.provenance,
+        availability,
+        models: catalog,
+      }),
       "quarantine.json": renderQuarantineFile(quarantine),
       "deprecated.json": renderDeprecatedFile(deprecated),
       "patches.json": renderPatchesFile(patches),

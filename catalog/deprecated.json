@@ -1,1 +1,39 @@
-[]
+[
+  {
+    "id": "ox-alpha-free",
+    "deprecatedAt": "2026-08-27T19:12:28.592Z",
+    "model": {
+      "id": "ox-alpha-free",
+      "name": "Ox Alpha Free (Unlimited)",
+      "protocol": "openai-completions",
+      "provider": "opencode-go",
+      "baseUrl": "https://opencode.ai/zen/go/v1",
+      "input": [
+        "text",
+        "image",
+        "video"
+      ],
+      "contextWindow": 1000000,
+      "maxTokens": 131072,
+      "reasoning": true,
+      "reasoningOptions": [
+        {
+          "kind": "effort",
+          "values": [
+            "low",
+            "high",
+            "max"
+          ]
+        }
+      ],
+      "interleaved": {
+        "field": "reasoning_content"
+      },
+      "cost": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0
+      }
+    }
+  }
+]

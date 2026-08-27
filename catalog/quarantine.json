@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "id": "hy3-preview",
+    "detectedAt": "2026-08-27T19:12:28.592Z",
+    "source": "live",
+    "reasonCode": "NO_MODELS_DEV_METADATA"
+  }
+]

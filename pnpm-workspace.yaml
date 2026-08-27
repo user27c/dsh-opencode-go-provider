@@ -2,6 +2,7 @@
 # paths only; never needed by the openai/anthropic transports this bundle uses).
 allowBuilds:
   '@google/genai': false
+  esbuild: set this to true or false
   protobufjs: false
 # DSH rc.6 Host satisfies the provider's peerDependencies at install time.
 # Do not auto-install peers into this repository's own node_modules during

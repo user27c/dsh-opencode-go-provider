@@ -8,7 +8,11 @@
  */
 
 /** The three transport classes OpenCode Go exposes (models.dev SDK mapping). */
-export const PROTOCOLS = ["openai-responses", "openai-completions", "anthropic-messages"] as const;
+export const PROTOCOLS = [
+  "openai-responses",
+  "openai-completions",
+  "anthropic-messages",
+] as const;
 export type Protocol = (typeof PROTOCOLS)[number];
 
 /** Stable provider id used in every catalog entry and the DSH route. */
@@ -31,7 +35,13 @@ export const QUARANTINE_REASON_CODES = [
 export type QuarantineReasonCode = (typeof QUARANTINE_REASON_CODES)[number];
 
 /** Modality literals accepted by the models.dev schema. */
-export const MODALITY_LITERALS = ["text", "audio", "image", "video", "pdf"] as const;
+export const MODALITY_LITERALS = [
+  "text",
+  "audio",
+  "image",
+  "video",
+  "pdf",
+] as const;
 export type ModalityLiteral = (typeof MODALITY_LITERALS)[number];
 
 /** Flat price triple from models.dev; tiers add threshold prices on top. */
@@ -57,7 +67,11 @@ export interface ModelCost extends ModelCostBase {
 /** Normalized reasoning option kinds from models.dev reasoning_options. */
 export type ReasoningOption =
   | { readonly kind: "effort"; readonly values: readonly (string | null)[] }
-  | { readonly kind: "budgetTokens"; readonly min?: number; readonly max?: number }
+  | {
+      readonly kind: "budgetTokens";
+      readonly min?: number;
+      readonly max?: number;
+    }
   | { readonly kind: "toggle" };
 
 /** Interleaved reasoning field name (openai-completions dialect). */
@@ -77,6 +91,7 @@ export type Availability =
 export interface CatalogModel {
   readonly id: string;
   readonly name: string;
+  readonly family?: string;
   readonly protocol: Protocol;
   readonly provider: typeof PROVIDER_ID;
   readonly baseUrl: string;
@@ -124,6 +139,7 @@ export interface Patches {
 export interface ModelsDevModelMetadata {
   readonly id: string;
   readonly name: string;
+  readonly family?: string;
   readonly reasoning: boolean;
   readonly contextWindow: number;
   readonly maxTokens: number;
@@ -150,7 +166,8 @@ export type ModelRecordParseResult =
   | { readonly kind: "parsed"; readonly metadata: ModelsDevModelMetadata }
   | {
       readonly kind: "invalid";
-      readonly reasonCode: "INVALID_MODEL_RECORD" | "MISSING_CONTEXT" | "MISSING_OUTPUT_LIMIT";
+      readonly reasonCode:
+        "INVALID_MODEL_RECORD" | "MISSING_CONTEXT" | "MISSING_OUTPUT_LIMIT";
     };
 
 /** Catalog derivation outcome: protocol/baseUrl/capacity assembly or a reason. */
@@ -158,7 +175,8 @@ export type DeriveResult =
   | { readonly kind: "derived"; readonly model: CatalogModel }
   | {
       readonly kind: "underviable";
-      readonly reasonCode: "UNKNOWN_SDK" | "ANTHROPIC_BASE_URL_MISSING" | "MISSING_BASE_URL";
+      readonly reasonCode:
+        "UNKNOWN_SDK" | "ANTHROPIC_BASE_URL_MISSING" | "MISSING_BASE_URL";
     };
 
 /** Previously committed state consumed by a reconciliation run. */
