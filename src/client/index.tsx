@@ -12,7 +12,12 @@ import type { ClientContext } from "@deepseek-ai/dsh-client-runtime/client";
 import type {} from "@deepseek-ai/dsh-client-ui-settings-plugins/client";
 import type {} from "@deepseek-ai/dsh-client-locale/client";
 import type {} from "@deepseek-ai/dsh-client-ui-slots";
-import { API_KEY_ENV, PLUGIN_NAME, PROVIDER_ROUTE } from "../contract.ts";
+import {
+  API_KEY_ENV,
+  BUNDLE_ROW_ID,
+  PLUGIN_NAME,
+  PROVIDER_ROUTE,
+} from "../contract.ts";
 import { ConnectCard } from "./connect-card.tsx";
 import type { ConnectCardProps } from "./connect-card.tsx";
 import { createConnectRemote } from "./connect-remote.ts";
@@ -66,7 +71,7 @@ export function apply(ctx: ClientContext): void {
     ctx.slots.register(
       {
         name: "settings.plugin.item",
-        key: "opencode-go",
+        key: BUNDLE_ROW_ID,
         order: 30,
         inject: (): ConnectCardInjected => ({ t, remote }),
       },
