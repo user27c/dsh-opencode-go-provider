@@ -8,21 +8,44 @@
  * live ids are quarantined with a machine-readable reason. The clock is
  * injected, never wall-read, and `generatedAt` moves only on real transitions.
  */
-import { compareIds, deriveCatalogModel, renderDeprecatedFile, renderModelsPayload } from "./catalog.ts";
+import {
+  compareIds,
+  deriveCatalogModel,
+  renderDeprecatedFile,
+  renderModelsPayload,
+} from "./catalog.ts";
 import { FOURTEEN_DAYS_MS } from "./constants.ts";
-import type { CatalogModel, DeprecatedEntry, QuarantineRecord, ReconcileInput, ReconcileResult, ReconcileStats } from "./types.ts";
+import type {
+  CatalogModel,
+  DeprecatedEntry,
+  QuarantineRecord,
+  ReconcileInput,
+  ReconcileResult,
+  ReconcileStats,
+} from "./types.ts";
 
-function sortByQuarantineId(records: readonly QuarantineRecord[]): readonly QuarantineRecord[] {
+function sortByQuarantineId(
+  records: readonly QuarantineRecord[],
+): readonly QuarantineRecord[] {
   return [...records].sort((a, b) => compareIds(a.id, b.id));
 }
 
-function quarantineChanged(candidate: readonly QuarantineRecord[], previous: readonly QuarantineRecord[]): boolean {
+function quarantineChanged(
+  candidate: readonly QuarantineRecord[],
+  previous: readonly QuarantineRecord[],
+): boolean {
   if (candidate.length !== previous.length) return true;
   for (let index = 0; index < candidate.length; index += 1) {
     const left = candidate[index];
     const right = previous[index];
-    if (left === undefined || right === undefined || left.id !== right.id ||
-        left.source !== right.source || left.reasonCode !== right.reasonCode || left.detectedAt !== right.detectedAt) {
+    if (
+      left === undefined ||
+      right === undefined ||
+      left.id !== right.id ||
+      left.source !== right.source ||
+      left.reasonCode !== right.reasonCode ||
+      left.detectedAt !== right.detectedAt
+    ) {
       return true;
     }
   }
@@ -37,12 +60,23 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
 
   const catalog: CatalogModel[] = [];
   const requiredQuarantine = new Map<string, QuarantineRecord>();
-  const quarantinePrevious = new Map(previous.quarantine.map((record) => [record.id, record]));
+  const quarantinePrevious = new Map(
+    previous.quarantine.map((record) => [record.id, record]),
+  );
 
-  const recordQuarantine = (id: string, source: "live" | "models.dev", reasonCode: QuarantineRecord["reasonCode"]): void => {
+  const recordQuarantine = (
+    id: string,
+    source: "live" | "models.dev",
+    reasonCode: QuarantineRecord["reasonCode"],
+  ): void => {
     const existing = quarantinePrevious.get(id);
     if (existing !== undefined) {
-      requiredQuarantine.set(id, { id, detectedAt: existing.detectedAt, source, reasonCode });
+      requiredQuarantine.set(id, {
+        id,
+        detectedAt: existing.detectedAt,
+        source,
+        reasonCode,
+      });
       return;
     }
     requiredQuarantine.set(id, { id, detectedAt: nowIso, source, reasonCode });
@@ -69,7 +103,9 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
     }
   }
 
-  const deprecatedMap = new Map(previous.deprecated.map((entry) => [entry.id, entry]));
+  const deprecatedMap = new Map(
+    previous.deprecated.map((entry) => [entry.id, entry]),
+  );
   const resultDeprecated: DeprecatedEntry[] = [];
   let evicted = 0;
   let resurrected = 0;
@@ -99,26 +135,37 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
     }
     resultDeprecated.push({ id, deprecatedAt: nowIso, model: derived.model });
   }
+  // Do not push deprecated models into catalog - immediate eviction.
+  // Deprecated entries remain in deprecated.json for audit but are hidden from picker.
   for (const entry of resultDeprecated) {
-    if (entry.evictedAt === undefined) {
-      catalog.push(entry.model);
-    }
+    void entry;
   }
 
   const sortedCatalog = [...catalog].sort((a, b) => compareIds(a.id, b.id));
   const sortedQuarantine = sortByQuarantineId([...requiredQuarantine.values()]);
-  const sortedDeprecated = [...resultDeprecated].sort((a, b) => compareIds(a.id, b.id));
+  const sortedDeprecated = [...resultDeprecated].sort((a, b) =>
+    compareIds(a.id, b.id),
+  );
 
-  const modelsChanged = renderModelsPayload(previous.models) !== renderModelsPayload(sortedCatalog);
-  const quarantineChangedFlag = quarantineChanged(sortedQuarantine, sortByQuarantineId(previous.quarantine));
-  const deprecatedChanged = renderDeprecatedFile(previous.deprecated) !== renderDeprecatedFile(sortedDeprecated);
-  const transitioned = modelsChanged || quarantineChangedFlag || deprecatedChanged;
+  const modelsChanged =
+    renderModelsPayload(previous.models) !== renderModelsPayload(sortedCatalog);
+  const quarantineChangedFlag = quarantineChanged(
+    sortedQuarantine,
+    sortByQuarantineId(previous.quarantine),
+  );
+  const deprecatedChanged =
+    renderDeprecatedFile(previous.deprecated) !==
+    renderDeprecatedFile(sortedDeprecated);
+  const transitioned =
+    modelsChanged || quarantineChangedFlag || deprecatedChanged;
 
   const stats: ReconcileStats = {
     known: provider.models.size,
     live: liveSet.size,
     quarantined: sortedQuarantine.length,
-    deprecated: sortedDeprecated.filter((entry) => entry.evictedAt === undefined).length,
+    deprecated: sortedDeprecated.filter(
+      (entry) => entry.evictedAt === undefined,
+    ).length,
     evicted,
     resurrected,
   };
@@ -127,7 +174,10 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
     catalog: sortedCatalog,
     quarantine: sortedQuarantine,
     deprecated: sortedDeprecated,
-    generatedAt: transitioned || previous.generatedAt === undefined ? nowIso : previous.generatedAt,
+    generatedAt:
+      transitioned || previous.generatedAt === undefined
+        ? nowIso
+        : previous.generatedAt,
     transitioned,
     stats,
   };

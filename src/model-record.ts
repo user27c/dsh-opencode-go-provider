@@ -270,9 +270,15 @@ export function parseModelRecord(value: unknown): ModelRecordParseResult {
   if (value.modalities !== undefined && input === undefined) {
     return { kind: "invalid", reasonCode: "INVALID_MODEL_RECORD" };
   }
-  const reasoningOptions = parseReasoningOptions(value.reasoning_options);
+  let reasoningOptions = parseReasoningOptions(value.reasoning_options);
   if (value.reasoning_options !== undefined && reasoningOptions === undefined) {
     return { kind: "invalid", reasonCode: "INVALID_MODEL_RECORD" };
+  }
+  if (
+    reasoning === true &&
+    (reasoningOptions === undefined || reasoningOptions.length === 0)
+  ) {
+    reasoningOptions = [{ kind: "toggle" }];
   }
   const interleaved = parseInterleaved(value.interleaved);
   if (
@@ -282,15 +288,22 @@ export function parseModelRecord(value: unknown): ModelRecordParseResult {
   ) {
     return { kind: "invalid", reasonCode: "INVALID_MODEL_RECORD" };
   }
-  const rawFamily = (value as Record<string, unknown>).family;
-  let family: string | undefined;
-  if (rawFamily === undefined || rawFamily === null) {
-    family = undefined;
-  } else if (isString(rawFamily) && isSafeText(rawFamily)) {
-    family = rawFamily;
-  } else if (isString(rawFamily)) {
+  // Canonicalize family to vendor prefix so same-vendor models group together
+  // (models.dev fragments e.g. mimo-v2.5 vs mimo-v2-pro, qwen3.5 vs qwen3.7-max).
+  const canonicalFamily = (() => {
+    const m = /^[a-z]+/.exec(id);
+    return m ? m[0] : id;
+  })();
+  if (!isSafeText(canonicalFamily)) {
     return { kind: "invalid", reasonCode: "INVALID_MODEL_RECORD" };
-  } else {
+  }
+  const family: string | undefined = canonicalFamily;
+  // Validate raw family shape but do not use it for grouping (keeps schema validation).
+  const rawFamily = (value as Record<string, unknown>).family;
+  if (rawFamily !== undefined && rawFamily !== null && !isString(rawFamily)) {
+    return { kind: "invalid", reasonCode: "INVALID_MODEL_RECORD" };
+  }
+  if (isString(rawFamily) && !isSafeText(rawFamily)) {
     return { kind: "invalid", reasonCode: "INVALID_MODEL_RECORD" };
   }
   const provider = isRecord(value.provider) ? value.provider : undefined;
