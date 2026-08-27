@@ -31,7 +31,9 @@ const PROTOCOLS: Readonly<Record<Protocol, ProviderStreams>> = {
 const NO_COST = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } as const;
 
 /** Narrow catalog modalities to the pi-ai vocabulary, text as the floor. */
-function toPiInput(input: readonly ModalityLiteral[] | undefined): ("text" | "image")[] {
+function toPiInput(
+  input: readonly ModalityLiteral[] | undefined,
+): ("text" | "image")[] {
   const narrowed = (input ?? []).filter(
     (modality): modality is "text" | "image" =>
       modality === "text" || modality === "image",
@@ -61,6 +63,38 @@ function toPiCost(cost: CatalogModel["cost"]): Model<Protocol>["cost"] {
   };
 }
 
+/** Synthesize pi-ai thinkingLevelMap from catalog reasoningOptions. */
+function toThinkingLevelMap(
+  model: CatalogModel,
+): Model<Protocol>["thinkingLevelMap"] | undefined {
+  if (!model.reasoning) return undefined;
+  const effort = model.reasoningOptions?.find((opt) => opt.kind === "effort");
+  if (effort !== undefined && effort.values.length > 0) {
+    const allowed = new Set(effort.values);
+    const map: Record<string, string | null> = {};
+    for (const lvl of [
+      "minimal",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+    ] as const) {
+      map[lvl] = allowed.has(lvl) ? lvl : null;
+    }
+    return map as Model<Protocol>["thinkingLevelMap"];
+  }
+  // toggle-only reasoning (no effort values): hide all effort levels
+  return {
+    minimal: null,
+    low: null,
+    medium: null,
+    high: null,
+    xhigh: null,
+    max: null,
+  } as Model<Protocol>["thinkingLevelMap"];
+}
+
 /** Project one embedded catalog entry into the pi-ai model vocabulary. */
 export function toPiModel(model: CatalogModel): Model<Protocol> {
   return {
@@ -70,6 +104,9 @@ export function toPiModel(model: CatalogModel): Model<Protocol> {
     provider: PROVIDER_ROUTE,
     baseUrl: model.baseUrl,
     reasoning: model.reasoning,
+    ...(toThinkingLevelMap(model) === undefined
+      ? {}
+      : { thinkingLevelMap: toThinkingLevelMap(model) }),
     input: toPiInput(model.input),
     cost: toPiCost(model.cost),
     contextWindow: model.contextWindow,
