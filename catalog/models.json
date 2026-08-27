@@ -3,10 +3,7 @@
   "provenance": "models.dev snapshot 2026-08-27 (live verified) + family+prefix sort",
   "availability": {
     "kind": "verified",
-    "liveSource": {
-      "kind": "live",
-      "endpoint": "https://opencode.ai/zen/go/v1/models"
-    }
+    "liveSource": "live"
   },
   "models": [
     {
